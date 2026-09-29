@@ -9,11 +9,11 @@ export function useVoteGuard(electionId: string) {
   useEffect(() => {
     try {
       setHasVoted(!!localStorage.getItem(KEY(electionId)))
-    } catch {}
+    } catch { }
   }, [electionId])
 
   const markVoted = () => {
-    try { localStorage.setItem(KEY(electionId), '1') } catch {}
+    try { localStorage.setItem(KEY(electionId), '1') } catch { }
     setHasVoted(true)
   }
 
