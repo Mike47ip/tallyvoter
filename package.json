@@ -8,30 +8,33 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "5.22.0",
+    "@supabase/ssr": "^0.3.0",
+    "@supabase/supabase-js": "^2.43.4",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.395.0",
     "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18",
-    "@supabase/supabase-js": "^2.43.4",
-    "@supabase/ssr": "^0.3.0",
-    "date-fns": "^3.6.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0",
-    "lucide-react": "^0.395.0"
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "tailwindcss": "^3.4.4",
-    "postcss": "^8",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
+    "postcss": "^8",
     "prettier": "^3.3.2",
-    "prettier-plugin-tailwindcss": "^0.6.5"
+    "prettier-plugin-tailwindcss": "^0.6.5",
+    "prisma": "5.22.0",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5"
   }
 }

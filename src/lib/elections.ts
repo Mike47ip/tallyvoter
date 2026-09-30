@@ -20,7 +20,7 @@ export async function getLiveElection(id: string): Promise<Election | null> {
       starts_at: election.startsAt.toISOString(),
       ends_at: election.endsAt.toISOString(),
       created_at: election.createdAt.toISOString(),
-      candidates: election.candidates.map(c => ({
+      candidates: election.candidates.map((c: any) => ({
         id: c.id,
         name: c.name,
         bio: c.bio ?? undefined,
@@ -50,8 +50,8 @@ export async function getVoteCounts(electionId: string) {
     orderBy: { position: 'asc' },
     include: { _count: { select: { votes: true } } },
   })
-  const total = candidates.reduce((s, c) => s + c._count.votes, 0)
-  return candidates.map(c => ({
+  const total = candidates.reduce((s: number, c: any) => s + c._count.votes, 0)
+  return candidates.map((c: any) => ({
     candidate_id: c.id,
     candidate_name: c.name,
     election_id: electionId,
