@@ -1,7 +1,15 @@
 // tallyvoter: src/app/api/vote/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { castVote } from '@/lib/elections'
-import { createClient } from '@/lib/supabase/server'
+import { PrismaClient } from '@prisma/client'
+
+export const dynamic = 'force-dynamic'
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+const TALLYVOTE_URL = process.env.NEXT_PUBLIC_TALLYVOTE_URL ?? 'http://localhost:3000'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,22 +17,17 @@ export async function POST(req: NextRequest) {
     if (!election_id || !candidate_id)
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
-    const supabase = createClient()
-
-    // Check if election is restricted
-    const { data: election } = await supabase
-      .from('elections')
-      .select('restricted')
-      .eq('id', election_id)
-      .single()
+    // Check if election is restricted via Prisma
+    const election = await prisma.election.findFirst({
+      where: { id: election_id },
+      select: { restricted: true },
+    })
 
     if (election?.restricted) {
       if (!vote_code)
         return NextResponse.json({ error: 'Vote code required for this election' }, { status: 400 })
 
-      // Verify code via tallyvote API
-      const tallyvoteUrl = process.env.NEXT_PUBLIC_TALLYVOTE_API_URL ?? 'http://localhost:3000'
-      const verifyRes = await fetch(`${tallyvoteUrl}/api/elections/${election_id}/verify-code`, {
+      const verifyRes = await fetch(`${TALLYVOTE_URL}/api/elections/${election_id}/verify-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vote_code }),
@@ -37,11 +40,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: verifyData.error ?? 'Invalid code' }, { status: 401 })
       }
 
-      // Cast vote using the vote code as fingerprint so it's unique per voter
       await castVote(election_id, candidate_id, `code_${vote_code.toUpperCase()}`)
 
-      // Mark voter as voted in tallyvote
-      await fetch(`${tallyvoteUrl}/api/elections/${election_id}/mark-voted`, {
+      await fetch(`${TALLYVOTE_URL}/api/elections/${election_id}/mark-voted`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vote_code }),
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // Open election — existing flow
+    // Open election
     await castVote(election_id, candidate_id, fingerprint ?? 'anonymous')
     return NextResponse.json({ success: true })
 
