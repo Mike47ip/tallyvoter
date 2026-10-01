@@ -1,28 +1,30 @@
+// tallyvoter/src/hooks/useRealtimeResults.ts
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 interface VoteCount { candidate_id: string; candidate_name: string; count: number; percentage: number }
+
+const TALLYVOTE_URL = process.env.NEXT_PUBLIC_TALLYVOTE_URL ?? 'http://localhost:3000'
 
 export function useRealtimeResults(electionId: string, initial: VoteCount[]) {
   const [counts, setCounts] = useState<VoteCount[]>(initial)
 
   useEffect(() => {
     if (!electionId) return
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`results:${electionId}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'votes',
-        filter: `election_id=eq.${electionId}`,
-      }, async () => {
-        const { data } = await supabase
-          .from('vote_counts').select('*')
-          .eq('election_id', electionId).order('count', { ascending: false })
-        if (data) setCounts(data)
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    async function fetchCounts() {
+      try {
+        const res = await fetch(`${TALLYVOTE_URL}/api/elections/${electionId}/counts`)
+        if (res.ok) {
+          const data = await res.json()
+          setCounts(data)
+        }
+      } catch {}
+    }
+
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 5000)
+    return () => clearInterval(interval)
   }, [electionId])
 
   return counts
