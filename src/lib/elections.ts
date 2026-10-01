@@ -1,4 +1,4 @@
-// tallyvoter/src/lib/elections.ts
+// tallyvoter/src/lib/elections.ts redirects
 import { PrismaClient } from '@prisma/client'
 import type { Election } from '@/types'
 
