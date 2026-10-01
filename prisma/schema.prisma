@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PlanTier {
+  free
+  starter
+  pro
+}
+
+enum UserRole {
+  superadmin
+  org_admin
+}
+
+enum ElectionStatus {
+  draft
+  live
+  closed
+}
+
+enum VotingMethod {
+  qr
+  shortcode
+  link
+  email
+  sms
+  ussd
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  profile      Profile?
+  organization Organization? @relation("OrgOwner")
+  votes          Vote[]
+
+  @@map("users")
+}
+
+model Profile {
+  id        String   @id
+  role      UserRole @default(org_admin)
+  orgId     String?  @map("org_id")
+  fullName  String?  @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [id], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@map("profiles")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  email     String   @unique
+  phone     String?
+  logoUrl   String?  @map("logo_url")
+  plan      PlanTier @default(free)
+  isActive  Boolean  @default(true) @map("is_active")
+  ownerId   String?  @unique @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  owner         User?             @relation("OrgOwner", fields: [ownerId], references: [id])
+  profiles      Profile[]
+  elections     Election[]
+  votingMethods OrgVotingMethod[]
+
+  @@map("organizations")
+}
+
+model OrgVotingMethod {
+  id        String       @id @default(uuid())
+  orgId     String       @map("org_id")
+  method    VotingMethod
+  enabled   Boolean      @default(true)
+  config    Json?
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, method])
+  @@map("org_voting_methods")
+}
+
+model Election {
+  id          String         @id @default(uuid())
+  orgId       String         @map("org_id")
+  title       String
+  description String?
+  status      ElectionStatus @default(draft)
+  anonymous   Boolean        @default(true)
+  restricted  Boolean        @default(false)
+  shortCode   String?        @unique @map("short_code")
+  startsAt    DateTime       @map("starts_at")
+  endsAt      DateTime       @map("ends_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  candidates   Candidate[]
+  votes          Vote[]
+  eligibleVoters EligibleVoter[]
+
+  @@index([orgId, status])
+  @@index([shortCode])
+  @@map("elections")
+}
+
+model Candidate {
+  id         String   @id @default(uuid())
+  electionId String   @map("election_id")
+  name       String
+  bio        String?
+  avatarUrl  String?  @map("avatar_url")
+  position   Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+
+  @@map("candidates")
+}
+
+model Vote {
+  id               String   @id @default(uuid())
+  electionId       String   @map("election_id")
+  candidateId      String   @map("candidate_id")
+  voterId          String?  @map("voter_id")
+  voterFingerprint String?  @map("voter_fingerprint")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  election  Election  @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  voter     User?     @relation(fields: [voterId], references: [id])
+
+  @@unique([electionId, voterFingerprint])
+  @@index([electionId, candidateId])
+  @@map("votes")
+}
+
+model EligibleVoter {
+  id         String   @id @default(uuid())
+  electionId String   @map("election_id")
+  name       String
+  phone      String
+  voteCode   String   @map("vote_code")
+  hasVoted   Boolean  @default(false) @map("has_voted")
+  smsSent    Boolean  @default(false) @map("sms_sent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, phone])
+  @@unique([electionId, voteCode])
+  @@index([electionId])
+  @@map("eligible_voters")
+}
